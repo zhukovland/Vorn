@@ -16,7 +16,7 @@ let package = Package(
         .package(path: "../VornCore"),
     ],
     targets: [
-        .target(name: "VornStorage", dependencies: ["VornCore"]),
-        .testTarget(name: "VornStorageTests", dependencies: ["VornStorage"]),
+        .target(name: "VornStorage", dependencies: ["VornCore"], path: "Sources"),
+        .testTarget(name: "VornStorageTests", dependencies: ["VornStorage"], path: "Tests/VornStorageTests"),
     ]
 )
