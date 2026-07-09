@@ -14,6 +14,8 @@ let project = Project(
             "DEVELOPMENT_TEAM": .string(teamID),
             "CODE_SIGN_STYLE": "Automatic",
             "SWIFT_VERSION": "6.0",
+            "SWIFT_DEFAULT_ACTOR_ISOLATION": "MainActor",
+            "SWIFT_APPROACHABLE_CONCURRENCY": "YES",
         ]
     ),
     targets: [
