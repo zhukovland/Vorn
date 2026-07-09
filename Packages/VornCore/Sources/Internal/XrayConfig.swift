@@ -15,8 +15,8 @@ struct XrayConfig: Encodable {
     struct Outbound: Encodable {
         let tag: String
         let `protocol`: String
-        var settings: Settings?
-        var streamSettings: StreamSettings?
+        let settings: Settings?
+        let streamSettings: StreamSettings?
 
         struct Settings: Encodable {
             let vnext: [VNext]
@@ -31,7 +31,7 @@ struct XrayConfig: Encodable {
         struct User: Encodable {
             let id: String
             let encryption: String
-            var flow: String?
+            let flow: String?
         }
 
         struct StreamSettings: Encodable {
@@ -45,7 +45,7 @@ struct XrayConfig: Encodable {
             let shortId: String
             let serverName: String
             let fingerprint: String
-            var spiderX: String?
+            let spiderX: String?
         }
     }
 

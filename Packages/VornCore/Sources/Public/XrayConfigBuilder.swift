@@ -2,21 +2,15 @@ import Foundation
 
 /// Генерация Xray-конфига из модели сервера.
 public enum XrayConfigBuilder {
-    public enum BuildError: Error, Equatable {
-        /// Кодирование не удалось. Деталей намеренно нет — в описание ошибки
-        /// не должны попадать адрес сервера и UUID пользователя.
-        case encodingFailed
-    }
-
     /// Собирает JSON-конфиг с VLESS/Reality outbound для сервера.
     /// Ключи отсортированы, поэтому вывод детерминирован и пригоден
     /// для сравнения в тестах и дедупликации.
     public static func makeConfig(for server: VLESSServer) throws -> Data {
         let config = XrayConfig(
-            log: .init(loglevel: "warning"),
+            log: .init(loglevel: XrayPolicy.logLevel),
             outbounds: [
                 .init(
-                    tag: "proxy",
+                    tag: XrayTag.proxy,
                     protocol: "vless",
                     settings: .init(vnext: [
                         .init(
@@ -39,17 +33,13 @@ public enum XrayConfigBuilder {
                         )
                     )
                 ),
-                .init(tag: "direct", protocol: "freedom"),
+                .init(tag: XrayTag.direct, protocol: "freedom", settings: nil, streamSettings: nil),
             ],
             routing: .init(domainStrategy: "AsIs")
         )
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        do {
-            return try encoder.encode(config)
-        } catch {
-            throw BuildError.encodingFailed
-        }
+        return try encoder.encode(config)
     }
 }

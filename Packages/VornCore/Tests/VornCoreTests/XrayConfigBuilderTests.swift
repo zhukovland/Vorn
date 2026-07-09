@@ -3,29 +3,8 @@ import Testing
 @testable import VornCore
 
 struct XrayConfigBuilderTests {
-    static func makeServer(flow: String? = "xtls-rprx-vision", spiderX: String? = nil) -> VLESSServer {
-        VLESSServer(
-            name: "Test",
-            address: "1.2.3.4",
-            port: 443,
-            userID: "b831381d-6324-4d53-ad4f-8cda48b30811",
-            flow: flow,
-            reality: RealitySettings(
-                publicKey: "pbk-value",
-                shortID: "6ba85179",
-                serverName: "yahoo.com",
-                fingerprint: "chrome",
-                spiderX: spiderX
-            )
-        )
-    }
-
-    static func json(_ data: Data) throws -> [String: Any] {
-        try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
-
     @Test func buildsVLESSRealityOutbound() throws {
-        let config = try Self.json(try XrayConfigBuilder.makeConfig(for: Self.makeServer()))
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server())))
 
         let log = try #require(config["log"] as? [String: Any])
         #expect(log["loglevel"] as? String == "warning")
@@ -33,8 +12,9 @@ struct XrayConfigBuilderTests {
         let outbounds = try #require(config["outbounds"] as? [[String: Any]])
         #expect(outbounds.count == 2)
         #expect(outbounds[0]["protocol"] as? String == "vless")
-        #expect(outbounds[0]["tag"] as? String == "proxy")
+        #expect(outbounds[0]["tag"] as? String == XrayTag.proxy)
         #expect(outbounds[1]["protocol"] as? String == "freedom")
+        #expect(outbounds[1]["tag"] as? String == XrayTag.direct)
 
         let settings = try #require(outbounds[0]["settings"] as? [String: Any])
         let vnext = try #require(settings["vnext"] as? [[String: Any]])
@@ -57,15 +37,23 @@ struct XrayConfigBuilderTests {
     }
 
     @Test func omitsAbsentOptionals() throws {
-        let config = try Self.json(try XrayConfigBuilder.makeConfig(for: Self.makeServer(flow: nil)))
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server(flow: nil))))
         let outbounds = try #require(config["outbounds"] as? [[String: Any]])
         let settings = try #require(outbounds[0]["settings"] as? [String: Any])
         let user = try #require(((settings["vnext"] as? [[String: Any]])?.first?["users"] as? [[String: Any]])?.first)
         #expect(user["flow"] == nil)
     }
 
+    @Test func emitsSpiderXPath() throws {
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server(spiderX: "/index.html"))))
+        let outbounds = try #require(config["outbounds"] as? [[String: Any]])
+        let stream = try #require(outbounds[0]["streamSettings"] as? [String: Any])
+        let reality = try #require(stream["realitySettings"] as? [String: Any])
+        #expect(reality["spiderX"] as? String == "/index.html")
+    }
+
     @Test func neverEmitsForbiddenBlocks() throws {
-        let config = try Self.json(try XrayConfigBuilder.makeConfig(for: Self.makeServer()))
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server())))
         #expect(config["api"] == nil)
         #expect(config["metrics"] == nil)
         #expect(config["stats"] == nil)
@@ -74,8 +62,8 @@ struct XrayConfigBuilderTests {
     }
 
     @Test func outputIsDeterministic() throws {
-        let first = try XrayConfigBuilder.makeConfig(for: Self.makeServer())
-        let second = try XrayConfigBuilder.makeConfig(for: Self.makeServer())
+        let first = try XrayConfigBuilder.makeConfig(for: Fixtures.server())
+        let second = try XrayConfigBuilder.makeConfig(for: Fixtures.server())
         #expect(first == second)
     }
 }
