@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode — проект генерируется Tuist-ом, в git не входит
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# SPM
+.build/
+.swiftpm/
+
+# Tuist
+Tuist/.build/
+Derived/
+.tuist-cache/
