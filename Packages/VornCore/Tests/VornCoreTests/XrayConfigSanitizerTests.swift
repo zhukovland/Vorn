@@ -108,6 +108,35 @@ struct XrayConfigSanitizerTests {
         #expect((routing["rules"] as? [[String: Any]])?.isEmpty == true)
     }
 
+    /// masterKeyLog пишет TLS-секреты в произвольный файл, dialerProxy
+    /// перенаправляет трафик outbound-а — из недоверенного конфига оба
+    /// должны исчезать, остальное в streamSettings не трогаем.
+    @Test func scrubsMasterKeyLogAndDialerProxy() throws {
+        let config = XrayConfigSanitizer.sanitize([
+            "outbounds": [[
+                "tag": "proxy",
+                "protocol": "vless",
+                "streamSettings": [
+                    "network": "tcp",
+                    "security": "reality",
+                    "realitySettings": ["publicKey": "pbk", "masterKeyLog": "/tmp/keys.log"],
+                    "tlsSettings": ["masterKeyLog": "/tmp/keys2.log"],
+                    "sockopt": ["tcpFastOpen": true, "dialerProxy": "evil-outbound"],
+                ],
+            ]],
+        ])
+
+        let outbound = try #require((config["outbounds"] as? [[String: Any]])?.first)
+        let stream = try #require(outbound["streamSettings"] as? [String: Any])
+        let reality = try #require(stream["realitySettings"] as? [String: Any])
+        #expect(reality["masterKeyLog"] == nil)
+        #expect(reality["publicKey"] as? String == "pbk")
+        #expect((stream["tlsSettings"] as? [String: Any])?["masterKeyLog"] == nil)
+        let sockopt = try #require(stream["sockopt"] as? [String: Any])
+        #expect(sockopt["dialerProxy"] == nil)
+        #expect(sockopt["tcpFastOpen"] as? Bool == true)
+    }
+
     @Test func isIdempotent() {
         let once = XrayConfigSanitizer.sanitize(Self.hostileConfig())
         let twice = XrayConfigSanitizer.sanitize(once)

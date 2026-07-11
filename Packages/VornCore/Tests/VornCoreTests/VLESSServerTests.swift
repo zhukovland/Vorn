@@ -35,6 +35,22 @@ struct VLESSServerTests {
         #expect(Self.makeServer(publicKey: "key1").id != Self.makeServer(publicKey: "key2").id)
     }
 
+    @Test func parsesBareLink() throws {
+        let pbk = "SbVKOEMjK0sIlbwg4akyBg5mL5KZwwB-ed4eEE7YnRc"
+        let link = "vless://aaa-uuid@10.0.0.1:443?security=reality&pbk=\(pbk)&sni=a.com&flow=xtls-rprx-vision#A"
+        let server = try #require(VLESSServer(link: link))
+        #expect(server.name == "A")
+        #expect(server.address == "10.0.0.1")
+        #expect(server.reality.publicKey == pbk)
+        // Тот же контракт идентичности, что у серверов из подписки.
+        #expect(server.id == VLESSLinkParser.parse(link)?.id)
+    }
+
+    @Test func rejectsNonRealityLink() {
+        #expect(VLESSServer(link: "vless://uuid@1.2.3.4:443?security=tls&sni=a.com#X") == nil)
+        #expect(VLESSServer(link: "не ссылка вовсе") == nil)
+    }
+
     @Test func idLeaksNoSecrets() {
         let server = Self.makeServer()
         #expect(!server.id.localizedCaseInsensitiveContains(server.userID))

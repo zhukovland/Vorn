@@ -3,10 +3,14 @@ import Testing
 @testable import VornCore
 
 struct SubscriptionParserTests {
-    static let linkA = "vless://aaa-uuid@10.0.0.1:443?security=reality&pbk=key1&sni=a.com&flow=xtls-rprx-vision#A"
-    static let linkB = "vless://bbb-uuid@10.0.0.2:8443?security=reality&pbk=key2&sni=b.com#B"
+    // pbk — валидные base64url-ключи (32 байта): парсер их проверяет.
+    static let linkA = "vless://aaa-uuid@10.0.0.1:443?security=reality"
+        + "&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sni=a.com&flow=xtls-rprx-vision#A"
+    static let linkB = "vless://bbb-uuid@10.0.0.2:8443?security=reality"
+        + "&pbk=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI&sni=b.com#B"
     /// Тот же endpoint, что linkA, но другой публичный ключ — другой сервер.
-    static let linkA2 = "vless://aaa-uuid@10.0.0.1:443?security=reality&pbk=otherKey&sni=a.com#A2"
+    static let linkA2 = "vless://aaa-uuid@10.0.0.1:443?security=reality"
+        + "&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sni=a.com#A2"
 
     static func base64Payload(_ lines: [String]) -> String {
         Data(lines.joined(separator: "\n").utf8).base64EncodedString()

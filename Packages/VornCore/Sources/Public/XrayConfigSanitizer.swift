@@ -18,6 +18,9 @@ import Foundation
 ///    иначе Xray пишет посещённые домены и адреса серверов в файл.
 /// 4. Никаких висячих ссылок: routing-правила, ссылающиеся на исчезнувшие теги,
 ///    удалены — Xray не примет конфиг с ссылкой на несуществующий тег.
+/// 5. В streamSettings outbound-ов нет `masterKeyLog` (пишет TLS-секреты
+///    в произвольный файл — экфильтрация ключей плюс запись на диск) и
+///    `sockopt.dialerProxy` (перенаправляет трафик outbound-а в другой).
 public enum XrayConfigSanitizer {
     public enum SanitizeError: Error, Equatable {
         case invalidJSON
@@ -45,11 +48,34 @@ public enum XrayConfigSanitizer {
             sanitized["inbounds"] = kept
         }
 
+        if let outbounds = sanitized["outbounds"] as? [[String: Any]] {
+            sanitized["outbounds"] = outbounds.map(scrubStreamSettings)
+        }
+
         if var routing = sanitized["routing"] as? [String: Any] {
             sanitized["routing"] = sanitizeRouting(routing: &routing, in: sanitized, removedTags: removedTags)
         }
 
         return sanitized
+    }
+
+    /// Наш билдер этих полей не порождает — зачистка страхует от конфига,
+    /// пришедшего любым другим путём (гарантия 5 в шапке).
+    private static func scrubStreamSettings(in outbound: [String: Any]) -> [String: Any] {
+        guard var stream = outbound["streamSettings"] as? [String: Any] else { return outbound }
+        for key in ["realitySettings", "tlsSettings"] {
+            if var settings = stream[key] as? [String: Any] {
+                settings.removeValue(forKey: "masterKeyLog")
+                stream[key] = settings
+            }
+        }
+        if var sockopt = stream["sockopt"] as? [String: Any] {
+            sockopt.removeValue(forKey: "dialerProxy")
+            stream["sockopt"] = sockopt
+        }
+        var outbound = outbound
+        outbound["streamSettings"] = stream
+        return outbound
     }
 
     /// Inbound со слушающим сокетом: у него есть порт или адрес прослушивания.
