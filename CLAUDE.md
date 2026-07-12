@@ -1,6 +1,6 @@
 # Vorn
 
-VLESS-клиент (Reality/Vision, только VLESS) для iOS 15+ / macOS 13+, один SwiftUI-код на обе платформы. tvOS 17+ — в планах: сейчас не собираем, но весь код вне app-таргета пишем платформенно-нейтрально. Импорт серверов — по подписочному URL (панель Remnawave): сервер отдаёт base64-текст со списком `vless://` ссылок.
+VLESS-клиент (Reality/Vision, только VLESS) для iOS 17+ / macOS 14+ (app-таргет использует Observation; пакеты держат пол iOS 15 / macOS 13), один SwiftUI-код на обе платформы. tvOS 17+ — в планах: сейчас не собираем, но весь код вне app-таргета пишем платформенно-нейтрально. Импорт серверов — по подписочному URL (панель Remnawave): сервер отдаёт base64-текст со списком `vless://` ссылок.
 
 ## Рабочий цикл
 
@@ -23,9 +23,8 @@ Project.swift, Tuist.swift   — манифесты Tuist (bundle id com.bigboys
 App/Sources, App/Resources   — app-таргет Vorn (iPhone/iPad/Mac). UI живёт здесь, отдельного UI-модуля нет
 Packages/VornCore            — модели (VLESSServer), парсинг подписок/ссылок, генерация Xray-конфига
 Packages/VornStorage         — Keychain (access group) + обмен с extension через App Group; зависит от VornCore
+PacketTunnel/Sources         — Network Extension (packet tunnel provider), единственный владелец SwiftyXrayKit
 ```
-
-Планируется таргет **PacketTunnel** (Network Extension, packet tunnel provider) — конфиг передаётся из app через App Group.
 
 ### Конвенция пакетов
 

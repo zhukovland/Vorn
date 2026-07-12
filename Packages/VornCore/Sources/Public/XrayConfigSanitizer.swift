@@ -18,9 +18,10 @@ import Foundation
 ///    иначе Xray пишет посещённые домены и адреса серверов в файл.
 /// 4. Никаких висячих ссылок: routing-правила, ссылающиеся на исчезнувшие теги,
 ///    удалены — Xray не примет конфиг с ссылкой на несуществующий тег.
-/// 5. В streamSettings outbound-ов нет `masterKeyLog` (пишет TLS-секреты
-///    в произвольный файл — экфильтрация ключей плюс запись на диск) и
-///    `sockopt.dialerProxy` (перенаправляет трафик outbound-а в другой).
+/// 5. У outbound-ов нет полей перенаправления трафика и экфильтрации:
+///    `proxySettings` и `sockopt.dialerProxy` (оба перецепляют трафик
+///    outbound-а через другой outbound) и `masterKeyLog` в
+///    reality/tlsSettings (пишет TLS-секреты в произвольный файл).
 public enum XrayConfigSanitizer {
     public enum SanitizeError: Error, Equatable {
         case invalidJSON
@@ -49,7 +50,7 @@ public enum XrayConfigSanitizer {
         }
 
         if let outbounds = sanitized["outbounds"] as? [[String: Any]] {
-            sanitized["outbounds"] = outbounds.map(scrubStreamSettings)
+            sanitized["outbounds"] = outbounds.map(scrubOutbound)
         }
 
         if var routing = sanitized["routing"] as? [String: Any] {
@@ -61,7 +62,12 @@ public enum XrayConfigSanitizer {
 
     /// Наш билдер этих полей не порождает — зачистка страхует от конфига,
     /// пришедшего любым другим путём (гарантия 5 в шапке).
-    private static func scrubStreamSettings(in outbound: [String: Any]) -> [String: Any] {
+    private static func scrubOutbound(_ outbound: [String: Any]) -> [String: Any] {
+        var outbound = outbound
+        // proxySettings.tag и sockopt.dialerProxy — один класс: перецепляют
+        // трафик outbound-а через другой (потенциально чужой) outbound.
+        outbound.removeValue(forKey: "proxySettings")
+
         guard var stream = outbound["streamSettings"] as? [String: Any] else { return outbound }
         for key in ["realitySettings", "tlsSettings"] {
             if var settings = stream[key] as? [String: Any] {
@@ -73,7 +79,6 @@ public enum XrayConfigSanitizer {
             sockopt.removeValue(forKey: "dialerProxy")
             stream["sockopt"] = sockopt
         }
-        var outbound = outbound
         outbound["streamSettings"] = stream
         return outbound
     }

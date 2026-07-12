@@ -115,7 +115,8 @@ public struct ServerVault: Sendable {
     /// сопоставляются по id (хэш параметров подключения), поэтому
     /// переименование сервера в панели выбор не сбрасывает, а смена ключа
     /// или адреса — сбрасывает: это уже другой сервер.
-    public func merge(_ subscription: Subscription) throws {
+    @discardableResult
+    public func merge(_ subscription: Subscription) throws -> VaultState {
         try mutate { state in
             if let index = state.subscriptions.firstIndex(where: { $0.id == subscription.id }) {
                 var updated = subscription
@@ -129,7 +130,8 @@ public struct ServerVault: Sendable {
 
     /// Удаляет подписку вместе с выбором, если он указывал в неё.
     /// Удалять несуществующую — не ошибка: операция идемпотентна.
-    public func remove(subscriptionID: String) throws {
+    @discardableResult
+    public func remove(subscriptionID: String) throws -> VaultState {
         try mutate { state in
             state.subscriptions.removeAll { $0.id == subscriptionID }
         }
@@ -138,7 +140,8 @@ public struct ServerVault: Sendable {
     /// Добавляет сервер из голой vless://-ссылки. Повторное добавление того
     /// же сервера (по id — хэшу параметров подключения) обновляет запись,
     /// а не плодит копии: вставить одну ссылку дважды безопасно.
-    public func addManual(_ server: VLESSServer) throws {
+    @discardableResult
+    public func addManual(_ server: VLESSServer) throws -> VaultState {
         try mutate { state in
             if let index = state.manualServers.firstIndex(where: { $0.id == server.id }) {
                 state.manualServers[index] = server
@@ -150,13 +153,15 @@ public struct ServerVault: Sendable {
 
     /// Удаляет ручной сервер вместе с выбором, если он указывал на него.
     /// Удалять несуществующий — не ошибка: операция идемпотентна.
-    public func removeManual(serverID: String) throws {
+    @discardableResult
+    public func removeManual(serverID: String) throws -> VaultState {
         try mutate { state in
             state.manualServers.removeAll { $0.id == serverID }
         }
     }
 
-    public func rename(subscriptionID: String, to name: String) throws {
+    @discardableResult
+    public func rename(subscriptionID: String, to name: String) throws -> VaultState {
         try mutate { state in
             guard let index = state.subscriptions.firstIndex(where: { $0.id == subscriptionID }) else {
                 throw VaultError.unknownSubscription
@@ -167,7 +172,8 @@ public struct ServerVault: Sendable {
 
     /// Устанавливает выбор; nil — снять выбор. Ссылка на несуществующий
     /// сервер — ошибка, а не молчаливая запись «висячего» выбора.
-    public func select(_ selection: ServerSelection?) throws {
+    @discardableResult
+    public func select(_ selection: ServerSelection?) throws -> VaultState {
         try mutate { state in
             state.selection = selection
             if selection != nil, state.selectedServer == nil {
@@ -178,12 +184,15 @@ public struct ServerVault: Sendable {
 
     /// Единственный путь записи: загрузить → изменить → снять «висячий»
     /// выбор → сохранить. Ошибка из transform прерывает до записи.
-    private func mutate(_ transform: (inout VaultState) throws -> Void) throws {
+    /// Возвращает сохранённое состояние, чтобы UI не перечитывал Keychain.
+    @discardableResult
+    private func mutate(_ transform: (inout VaultState) throws -> Void) throws -> VaultState {
         var state = try load()
         try transform(&state)
         if state.selectedServer == nil {
             state.selection = nil
         }
         try save(state)
+        return state
     }
 }

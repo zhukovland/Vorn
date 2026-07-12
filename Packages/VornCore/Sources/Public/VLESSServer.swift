@@ -48,8 +48,10 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
     }
 
     /// Разбирает одиночную vless://-ссылку (импорт «голого ключа» без
-    /// подписки). nil — из ссылки нельзя собрать рабочий Reality-сервер:
-    /// битый URL, чужая схема, security != reality, нет pbk или sni.
+    /// подписки). nil — из ссылки нельзя собрать рабочий Reality/Vision-сервер:
+    /// битый URL, чужая схема, security != reality, невалидные pbk/sid,
+    /// неподдерживаемый транспорт (не tcp/raw) или flow (не Vision).
+    /// Полные правила валидации — во внутреннем VLESSLinkParser.
     public init?(link: String) {
         guard let server = VLESSLinkParser.parse(link) else { return nil }
         self = server

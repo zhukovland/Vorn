@@ -108,14 +108,15 @@ struct XrayConfigSanitizerTests {
         #expect((routing["rules"] as? [[String: Any]])?.isEmpty == true)
     }
 
-    /// masterKeyLog пишет TLS-секреты в произвольный файл, dialerProxy
-    /// перенаправляет трафик outbound-а — из недоверенного конфига оба
-    /// должны исчезать, остальное в streamSettings не трогаем.
-    @Test func scrubsMasterKeyLogAndDialerProxy() throws {
+    /// masterKeyLog пишет TLS-секреты в произвольный файл; proxySettings и
+    /// dialerProxy перецепляют трафик outbound-а через другой outbound —
+    /// из недоверенного конфига все три должны исчезать, остальное не трогаем.
+    @Test func scrubsMasterKeyLogAndTrafficRedirection() throws {
         let config = XrayConfigSanitizer.sanitize([
             "outbounds": [[
                 "tag": "proxy",
                 "protocol": "vless",
+                "proxySettings": ["tag": "evil-relay"],
                 "streamSettings": [
                     "network": "tcp",
                     "security": "reality",
@@ -127,6 +128,7 @@ struct XrayConfigSanitizerTests {
         ])
 
         let outbound = try #require((config["outbounds"] as? [[String: Any]])?.first)
+        #expect(outbound["proxySettings"] == nil)
         let stream = try #require(outbound["streamSettings"] as? [String: Any])
         let reality = try #require(stream["realitySettings"] as? [String: Any])
         #expect(reality["masterKeyLog"] == nil)

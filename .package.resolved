@@ -1,0 +1,15 @@
+{
+  "originHash" : "d033e2dc07d690b2979faec170c3dc3698f27b0df3552f3b26b59a8bf6f5283c",
+  "pins" : [
+    {
+      "identity" : "swiftyxraykit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dima-u/SwiftyXrayKit.git",
+      "state" : {
+        "revision" : "3c5405521ae547de110f6ea65df00b1c05f6a0bc",
+        "version" : "2.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
