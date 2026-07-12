@@ -80,6 +80,41 @@ struct VLESSLinkParserTests {
         #expect(raw.id == tcp.id)
     }
 
+    @Test func parsesXHTTPTransport() throws {
+        let link = "vless://uuid@host:443?security=reality&pbk=\(validPBK)&sni=a.com"
+            + "&type=xhttp&path=%2Fdownload&host=cdn.example&mode=stream-up#xhttp"
+        let server = try #require(VLESSLinkParser.parse(link))
+        #expect(server.network == "xhttp")
+        #expect(server.xhttp?.path == "/download")
+        #expect(server.xhttp?.host == "cdn.example")
+        #expect(server.xhttp?.mode == "stream-up")
+        #expect(server.flow == nil)
+    }
+
+    @Test func xhttpDefaultsPathAndMode() throws {
+        let link = "vless://uuid@host:443?security=reality&pbk=\(validPBK)&sni=a.com&type=xhttp#x"
+        let server = try #require(VLESSLinkParser.parse(link))
+        #expect(server.xhttp?.path == "/")
+        #expect(server.xhttp?.mode == "auto")
+        #expect(server.xhttp?.host == nil)
+    }
+
+    /// flow для xhttp несовместим с Vision — очищается, а не роняет ссылку.
+    @Test func xhttpClearsVisionFlow() throws {
+        let link = "vless://uuid@host:443?security=reality&pbk=\(validPBK)&sni=a.com"
+            + "&type=xhttp&flow=xtls-rprx-vision#x"
+        let server = try #require(VLESSLinkParser.parse(link))
+        #expect(server.flow == nil)
+    }
+
+    /// Разный path — разные серверы (id учитывает транспорт).
+    @Test func xhttpPathAffectsID() throws {
+        let base = "vless://uuid@host:443?security=reality&pbk=\(validPBK)&sni=a.com&type=xhttp"
+        let a = try #require(VLESSLinkParser.parse(base + "&path=%2Fa#A"))
+        let b = try #require(VLESSLinkParser.parse(base + "&path=%2Fb#B"))
+        #expect(a.id != b.id)
+    }
+
     @Test func acceptsUDP443VisionFlow() throws {
         let server = try #require(VLESSLinkParser.parse(
             "vless://uuid@host:443?security=reality&pbk=\(validPBK)&sni=a.com&flow=xtls-rprx-vision-udp443#quic"

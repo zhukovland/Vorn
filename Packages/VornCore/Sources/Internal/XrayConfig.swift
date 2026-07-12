@@ -38,6 +38,8 @@ struct XrayConfig: Encodable {
             let network: String
             let security: String
             let realitySettings: Reality
+            // Только при network=xhttp; nil опускается при кодировании.
+            let xhttpSettings: XHTTP?
         }
 
         struct Reality: Encodable {
@@ -46,6 +48,12 @@ struct XrayConfig: Encodable {
             let serverName: String
             let fingerprint: String
             let spiderX: String?
+        }
+
+        struct XHTTP: Encodable {
+            let path: String
+            let host: String?
+            let mode: String
         }
     }
 

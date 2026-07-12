@@ -5,11 +5,14 @@ struct ContentView: View {
     @State private var vaultModel = VaultModel()
     @State private var tunnel = TunnelModel()
     @State private var linkInput = ""
+    @State private var subscriptionInput = ""
+    @State private var importing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             connectionSection
             addSection
+            announceBanner
             errorSection
             serverList
         }
@@ -50,13 +53,34 @@ struct ContentView: View {
     }
 
     private var addSection: some View {
-        HStack {
-            TextField("vless://…", text: $linkInput)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-                .onSubmit(addLink)
-            Button("Добавить", action: addLink)
-                .disabled(linkInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        VStack(spacing: 8) {
+            HStack {
+                TextField("Ссылка подписки https://…", text: $subscriptionInput)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .onSubmit(importSubscription)
+                Button("Импорт", action: importSubscription)
+                    .disabled(importing || subscriptionInput.trimmed.isEmpty)
+            }
+            HStack {
+                TextField("Или vless://-ключ", text: $linkInput)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .onSubmit(addLink)
+                Button("Добавить", action: addLink)
+                    .disabled(linkInput.trimmed.isEmpty)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var announceBanner: some View {
+        if let announce = vaultModel.announce {
+            Text(announce)
+                .font(.callout)
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -70,44 +94,79 @@ struct ContentView: View {
     }
 
     private var serverList: some View {
-        List(vaultModel.manualServers) { server in
+        List(vaultModel.entries) { entry in
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(server.name)
-                    Text("\(server.address):\(String(server.port))")
+                    Text(entry.server.name)
+                    Text(subtitle(for: entry))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if vaultModel.isSelected(server) {
+                if vaultModel.isSelected(entry.selection) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.tint)
                 }
             }
             .contentShape(Rectangle())
-            .onTapGesture { vaultModel.select(server) }
-            .contextMenu {
-                Button("Удалить", role: .destructive) { vaultModel.remove(server) }
-            }
+            .onTapGesture { vaultModel.select(entry.selection) }
+            .contextMenu { removeButton(for: entry) }
         }
         .listStyle(.inset)
         .overlay {
-            if vaultModel.manualServers.isEmpty {
+            if vaultModel.entries.isEmpty {
                 ContentUnavailableView(
                     "Нет серверов",
                     systemImage: "network.badge.shield.half.filled",
-                    description: Text("Вставьте vless://-ссылку, чтобы добавить сервер")
+                    description: Text("Импортируйте подписку или вставьте vless://-ключ")
                 )
             }
         }
     }
 
+    private func subtitle(for entry: ServerEntry) -> String {
+        let endpoint = "\(entry.server.address):\(String(entry.server.port))"
+        if let name = entry.subscriptionName {
+            return "\(name) · \(endpoint)"
+        }
+        return "ключ · \(endpoint)"
+    }
+
+    @ViewBuilder
+    private func removeButton(for entry: ServerEntry) -> some View {
+        switch entry.selection {
+        case .manual(let serverID):
+            Button("Удалить ключ", role: .destructive) {
+                vaultModel.removeManual(serverID: serverID)
+            }
+        case .subscription(let subscriptionID, _):
+            Button("Удалить подписку", role: .destructive) {
+                vaultModel.removeSubscription(id: subscriptionID)
+            }
+        }
+    }
+
+    private func importSubscription() {
+        let url = subscriptionInput.trimmed
+        guard !url.isEmpty else { return }
+        importing = true
+        Task {
+            await vaultModel.importSubscription(urlString: url)
+            importing = false
+            if vaultModel.lastError == nil { subscriptionInput = "" }
+        }
+    }
+
     private func addLink() {
-        let link = linkInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let link = linkInput.trimmed
         guard !link.isEmpty else { return }
         vaultModel.addServer(link: link)
         if vaultModel.lastError == nil { linkInput = "" }
     }
+}
+
+private extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 #Preview {

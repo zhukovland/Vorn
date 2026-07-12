@@ -11,6 +11,7 @@ let project = Project(
     packages: [
         .package(path: "Packages/VornCore"),
         .package(path: "Packages/VornStorage"),
+        .package(path: "Packages/VornSubscription"),
         // Только для таргета PacketTunnel — см. правило изоляции в CLAUDE.md.
         // Пин .exact: компонент видит весь расшифрованный трафик, поэтому
         // версию поднимаем осознанно после ревью, а не авто-обновлением тега.
@@ -49,6 +50,7 @@ let project = Project(
             dependencies: [
                 .package(product: "VornCore"),
                 .package(product: "VornStorage"),
+                .package(product: "VornSubscription"),
                 .target(name: "PacketTunnel"),
             ],
             settings: .settings(base: [

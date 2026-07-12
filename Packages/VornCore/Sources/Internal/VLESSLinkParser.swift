@@ -55,22 +55,39 @@ enum VLESSLinkParser {
         let shortID = params["sid"] ?? ""
         guard isRealityShortID(shortID) else { return nil }
 
-        // flow: пусто (Reality без Vision) или Vision-варианты; -udp443 —
-        // клиентская опция «не резать QUIC», принимаем как есть. Легаси
-        // xtls-rprx-direct/origin/splice ядро убрало в 1.8.0.
-        let flow = params["flow"].flatMap(\.nonEmpty)
-        if let flow, flow != "xtls-rprx-vision", flow != "xtls-rprx-vision-udp443" {
+        // Транспорт. "raw" — новое имя tcp в Xray; нормализуем, чтобы id не
+        // зависел от написания. xhttp несёт свои параметры (path/host/mode).
+        // grpc/ws не поддерживаем: ws с Reality невалиден, grpc не реализован.
+        let network: String
+        let xhttp: XHTTPSettings?
+        switch params["type"].flatMap(\.nonEmpty)?.lowercased() ?? "tcp" {
+        case "tcp", "raw":
+            network = "tcp"
+            xhttp = nil
+        case "xhttp":
+            network = "xhttp"
+            xhttp = XHTTPSettings(
+                path: params["path"].flatMap(\.nonEmpty) ?? "/",
+                host: params["host"].flatMap(\.nonEmpty),
+                mode: params["mode"].flatMap(\.nonEmpty) ?? "auto"
+            )
+        default:
             return nil
         }
 
-        // Транспорт: Vision работает только поверх RAW/TCP, а grpc/xhttp
-        // требуют транспортных параметров, которые мы в конфиг не переносим —
-        // честнее отказать при импорте. "raw" — новое имя tcp в Xray;
-        // нормализуем, чтобы id сервера не зависел от написания.
-        let network: String
-        switch params["type"].flatMap(\.nonEmpty)?.lowercased() ?? "tcp" {
-        case "tcp", "raw": network = "tcp"
-        default: return nil
+        // flow: Vision работает только поверх RAW/TCP. Значения — пусто,
+        // xtls-rprx-vision или -udp443 (клиентская опция «не резать QUIC»).
+        // Легаси xtls-rprx-direct/origin/splice ядро убрало в 1.8.0.
+        // Для xhttp flow не применяется — очищаем (ядро отвергло бы flow+xhttp).
+        let flow: String?
+        if network == "tcp" {
+            let raw = params["flow"].flatMap(\.nonEmpty)
+            if let raw, raw != "xtls-rprx-vision", raw != "xtls-rprx-vision-udp443" {
+                return nil
+            }
+            flow = raw
+        } else {
+            flow = nil
         }
 
         // spx: ядро требует ведущий "/" и подставляет "/" вместо пустого;
@@ -97,7 +114,8 @@ enum VLESSLinkParser {
             userID: userID,
             flow: flow,
             network: network,
-            reality: reality
+            reality: reality,
+            xhttp: xhttp
         )
     }
 

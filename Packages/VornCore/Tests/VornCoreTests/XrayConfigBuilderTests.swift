@@ -52,6 +52,30 @@ struct XrayConfigBuilderTests {
         #expect(reality["spiderX"] as? String == "/index.html")
     }
 
+    @Test func emitsXHTTPSettingsForXHTTPServer() throws {
+        let server = Fixtures.server(
+            flow: nil,
+            network: "xhttp",
+            xhttp: XHTTPSettings(path: "/dl", host: "cdn.example", mode: "stream-up")
+        )
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: server)))
+        let stream = try #require((config["outbounds"] as? [[String: Any]])?.first?["streamSettings"] as? [String: Any])
+        #expect(stream["network"] as? String == "xhttp")
+        let xhttp = try #require(stream["xhttpSettings"] as? [String: Any])
+        #expect(xhttp["path"] as? String == "/dl")
+        #expect(xhttp["host"] as? String == "cdn.example")
+        #expect(xhttp["mode"] as? String == "stream-up")
+        // Vision c xhttp несовместим — flow не проставляется.
+        let user = try #require(((config["outbounds"] as? [[String: Any]])?.first?["settings"] as? [String: Any]).flatMap { ($0["vnext"] as? [[String: Any]])?.first?["users"] as? [[String: Any]] }?.first)
+        #expect(user["flow"] == nil)
+    }
+
+    @Test func omitsXHTTPSettingsForTCPServer() throws {
+        let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server())))
+        let stream = try #require((config["outbounds"] as? [[String: Any]])?.first?["streamSettings"] as? [String: Any])
+        #expect(stream["xhttpSettings"] == nil)
+    }
+
     @Test func neverEmitsForbiddenBlocks() throws {
         let config = try #require(Fixtures.object(try XrayConfigBuilder.makeConfig(for: Fixtures.server())))
         #expect(config["api"] == nil)

@@ -15,7 +15,8 @@ enum Fixtures {
         shortID: String = "6ba85179",
         serverName: String = "yahoo.com",
         fingerprint: String = "chrome",
-        spiderX: String? = nil
+        spiderX: String? = nil,
+        xhttp: XHTTPSettings? = nil
     ) -> VLESSServer {
         VLESSServer(
             name: name,
@@ -30,7 +31,8 @@ enum Fixtures {
                 serverName: serverName,
                 fingerprint: fingerprint,
                 spiderX: spiderX
-            )
+            ),
+            xhttp: xhttp
         )
     }
 

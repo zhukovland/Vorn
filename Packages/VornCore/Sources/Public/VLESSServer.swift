@@ -17,13 +17,16 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
     public let port: Int
     /// UUID пользователя из userinfo-части ссылки. Секрет — не логировать.
     public let userID: String
-    /// flow из query (для Vision — "xtls-rprx-vision").
+    /// flow из query (для Vision — "xtls-rprx-vision"). Только с network=tcp.
     public let flow: String?
-    /// Транспорт из query-параметра type; по умолчанию tcp.
+    /// Транспорт из query-параметра type; по умолчанию tcp. Поддерживаются
+    /// "tcp" (RAW, для Vision) и "xhttp".
     public let network: String
     /// Параметры Reality. Продукт поддерживает только VLESS Reality,
     /// поэтому поле обязательное — сервер без Reality непредставим.
     public let reality: RealitySettings
+    /// Параметры XHTTP; не-nil только при network=xhttp.
+    public let xhttp: XHTTPSettings?
 
     public init(
         name: String,
@@ -32,7 +35,8 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
         userID: String,
         flow: String? = nil,
         network: String = "tcp",
-        reality: RealitySettings
+        reality: RealitySettings,
+        xhttp: XHTTPSettings? = nil
     ) {
         self.name = name
         self.address = address
@@ -41,9 +45,10 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
         self.flow = flow
         self.network = network
         self.reality = reality
+        self.xhttp = xhttp
         self.id = Self.connectionID(
             userID: userID, address: address, port: port,
-            flow: flow, network: network, reality: reality
+            flow: flow, network: network, reality: reality, xhttp: xhttp
         )
     }
 
@@ -63,12 +68,14 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
         port: Int,
         flow: String?,
         network: String,
-        reality: RealitySettings
+        reality: RealitySettings,
+        xhttp: XHTTPSettings?
     ) -> String {
         let material = [
             userID, address, String(port), flow ?? "", network,
             reality.publicKey, reality.shortID, reality.serverName,
             reality.fingerprint, reality.spiderX ?? "",
+            xhttp?.path ?? "", xhttp?.host ?? "", xhttp?.mode ?? "",
         ].joined(separator: "\n")
         let digest = SHA256.hash(data: Data(material.utf8))
         // 64 бит хватает для дедупликации списка серверов с запасом.

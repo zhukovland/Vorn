@@ -27,6 +27,19 @@ struct VLESSServerTests {
         #expect(decoded.id == server.id)
     }
 
+    @Test func roundTripsXHTTPThroughCodable() throws {
+        let server = VLESSServer(
+            name: "X", address: "1.2.3.4", port: 443, userID: "uuid",
+            network: "xhttp",
+            reality: RealitySettings(publicKey: "pbk", shortID: "sid", serverName: "a.com", fingerprint: "chrome"),
+            xhttp: XHTTPSettings(path: "/dl", host: "cdn.example", mode: "stream-up")
+        )
+        let decoded = try JSONDecoder().decode(VLESSServer.self, from: JSONEncoder().encode(server))
+        #expect(decoded == server)
+        #expect(decoded.xhttp == server.xhttp)
+        #expect(decoded.id == server.id)
+    }
+
     @Test func idIsStableAcrossRenames() {
         #expect(Self.makeServer(name: "A").id == Self.makeServer(name: "renamed in panel").id)
     }

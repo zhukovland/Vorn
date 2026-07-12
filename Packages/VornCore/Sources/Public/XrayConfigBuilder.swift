@@ -30,7 +30,10 @@ public enum XrayConfigBuilder {
                             serverName: server.reality.serverName,
                             fingerprint: server.reality.fingerprint,
                             spiderX: server.reality.spiderX
-                        )
+                        ),
+                        xhttpSettings: server.xhttp.map {
+                            .init(path: $0.path, host: $0.host, mode: $0.mode)
+                        }
                     )
                 ),
                 .init(tag: XrayTag.direct, protocol: "freedom", settings: nil, streamSettings: nil),
