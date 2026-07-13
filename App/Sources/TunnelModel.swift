@@ -3,6 +3,7 @@ import Foundation
 // не помечено Sendable; хэлпер снимает диагностику для типов фреймворка,
 // наш собственный код остаётся под проверкой Swift 6.
 @preconcurrency import NetworkExtension
+import VornDesignSystem
 import VornStorage
 
 /// Управление packet-tunnel-профилем: создание NETunnelProviderManager,
@@ -23,6 +24,9 @@ final class TunnelModel {
     // nonisolated(unsafe): токен трогают только init (main) и deinit;
     // NotificationCenter.removeObserver потокобезопасен.
     @ObservationIgnored nonisolated(unsafe) private var statusObserver: NSObjectProtocol?
+    // Смена сервера при активном туннеле: гасим текущий и, дождавшись
+    // .disconnected, поднимаем заново — extension прочитает новый выбор.
+    @ObservationIgnored private var reconnectPending = false
 
     init() {
         statusObserver = NotificationCenter.default.addObserver(
@@ -45,6 +49,14 @@ final class TunnelModel {
     private func handle(_ connection: NEVPNConnection) {
         status = connection.status
         guard status == .disconnected else { return }
+
+        // Дождались отключения ради смены сервера — поднимаем новый.
+        if reconnectPending {
+            reconnectPending = false
+            Task { await connect() }
+            return
+        }
+
         // Ошибка startTunnel не долетает до startVPNTunnel() — система
         // сообщает её постфактум, причиной последнего разрыва. Колбэк-форма
         // (не async): NEVPNConnection не Sendable, слать его в Task нельзя;
@@ -52,6 +64,17 @@ final class TunnelModel {
         connection.fetchLastDisconnectError { [weak self] error in
             guard let message = error?.localizedDescription else { return }
             Task { @MainActor in self?.lastError = message }
+        }
+    }
+
+    /// Переподключение на выбранный сейчас сервер: если активны — гасим и
+    /// поднимаем заново (новый выбор уже в Keychain), иначе просто поднимаем.
+    func reconnect() async {
+        if isActive {
+            reconnectPending = true
+            disconnect()
+        } else {
+            await connect()
         }
     }
 
@@ -125,6 +148,15 @@ final class TunnelModel {
 
     var isActive: Bool {
         status == .connected || status == .connecting || status == .reasserting
+    }
+
+    /// Статус NE в терминах дизайн-системы для героя.
+    var phase: ConnectionPhase {
+        switch status {
+        case .connected: .protected
+        case .connecting, .reasserting, .disconnecting: .connecting
+        default: .idle
+        }
     }
 
     var statusText: String {

@@ -82,6 +82,12 @@ final class VaultModel {
                 url: url, name: name, servers: result.servers, updatedAt: Date()
             )
             state = try vault.merge(subscription)
+            // Если после обновления выбор опустел (выбранный сервер исчез из
+            // свежего списка) или его ещё не было — выбираем первый сервер
+            // этой подписки, чтобы всегда было что подключать.
+            if state.selectedServer == nil, let first = subscription.servers.first {
+                state = try vault.select(.subscription(subscriptionID: subscription.id, serverID: first.id))
+            }
             announce = result.announce
             lastError = result.servers.isEmpty ? "Подписка без серверов" : nil
         } catch {
