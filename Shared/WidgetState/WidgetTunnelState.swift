@@ -48,9 +48,10 @@ enum WidgetTunnelState {
 
     /// Флаг-эмодзи и отображаемое имя выбранного сервера — всё, что виджет
     /// знает о сервере. Ни адреса, ни ключей в общие UserDefaults не
-    /// попадает (они остаются в Keychain, куда виджету доступа нет); имя —
-    /// то же, что видно в списке серверов приложения, уже без флага.
-    /// Пишет приложение при каждом изменении vault (см. VaultModel.state).
+    /// попадает: ключи остаются в Keychain (виджету он недоступен), а имя
+    /// проходит через VLESSServer.sharableName — раскрывающее адрес имя
+    /// сюда не пишется. Пишет приложение при каждом изменении vault
+    /// (см. VaultModel.state).
     nonisolated private static let flagKey = "widget.server.flag"
     nonisolated private static let titleKey = "widget.server.title"
 

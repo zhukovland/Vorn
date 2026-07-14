@@ -69,4 +69,26 @@ struct VLESSServerTests {
         #expect(!server.id.localizedCaseInsensitiveContains(server.userID))
         #expect(!server.id.contains(server.address))
     }
+
+    // sharableName — граница Keychain-периметра: имя, раскрывающее адрес,
+    // не должно уходить на виджет (общие UserDefaults, снапшоты, бэкапы).
+
+    @Test func sharableNamePassesCustomName() {
+        #expect(Self.makeServer(name: "🇳🇱 Amsterdam").sharableName == "🇳🇱 Amsterdam")
+    }
+
+    @Test func sharableNameRejectsSyntheticFallback() throws {
+        // Ссылка без #fragment — парсер подставляет "address:port".
+        let pbk = "SbVKOEMjK0sIlbwg4akyBg5mL5KZwwB-ed4eEE7YnRc"
+        let link = "vless://aaa-uuid@10.0.0.1:443?security=reality&pbk=\(pbk)&sni=a.com&flow=xtls-rprx-vision"
+        let server = try #require(VLESSServer(link: link))
+        #expect(server.name == "10.0.0.1:443")
+        #expect(server.sharableName == nil)
+    }
+
+    @Test func sharableNameRejectsAddressInsideName() {
+        #expect(Self.makeServer(name: "NL example.com fast", address: "example.com").sharableName == nil)
+        // Регистр не спасает.
+        #expect(Self.makeServer(name: "NL Example.COM", address: "example.com").sharableName == nil)
+    }
 }

@@ -27,10 +27,11 @@ struct ServerEntry: Identifiable {
 final class VaultModel {
     // didSet — единая точка синхронизации флага с виджетом: сюда стекаются
     // все изменения vault (выбор, импорт, удаление), отдельные вызовы по
-    // месту не нужны.
+    // месту не нужны. Наружу уходит только sharableName: имя, раскрывающее
+    // адрес сервера, за Keychain-периметр не выносим (CLAUDE.md).
     private(set) var state = VaultState() {
         didSet {
-            let parsed = state.selectedServer.map { ServerName.split($0.name) }
+            let parsed = state.selectedServer?.sharableName.map { ServerName.split($0) }
             WidgetTunnelState.set(serverFlag: parsed?.flag ?? nil, serverTitle: parsed?.title)
         }
     }

@@ -52,6 +52,16 @@ public struct VLESSServer: Codable, Identifiable, Hashable, Sendable {
         )
     }
 
+    /// Имя для поверхностей за пределами Keychain-периметра — виджет кладёт
+    /// его в общие UserDefaults App Group и рисует на рабочем столе, откуда
+    /// оно попадает в бэкапы и снапшоты WidgetKit. nil, когда имя раскрывает
+    /// адрес сервера (CLAUDE.md: адреса наружу не выносим): это и заглушка
+    /// «address:port» для ссылок без #fragment, и панельное имя, содержащее
+    /// адрес, — заглушка содержит адрес по построению, правило одно.
+    public var sharableName: String? {
+        name.range(of: address, options: .caseInsensitive) == nil ? name : nil
+    }
+
     /// Разбирает одиночную vless://-ссылку (импорт «голого ключа» без
     /// подписки). nil — из ссылки нельзя собрать рабочий Reality/Vision-сервер:
     /// битый URL, чужая схема, security != reality, невалидные pbk/sid,
