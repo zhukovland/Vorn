@@ -30,9 +30,8 @@ final class VaultModel {
     // месту не нужны.
     private(set) var state = VaultState() {
         didSet {
-            WidgetTunnelState.set(
-                serverFlag: state.selectedServer.flatMap { ServerName.split($0.name).flag }
-            )
+            let parsed = state.selectedServer.map { ServerName.split($0.name) }
+            WidgetTunnelState.set(serverFlag: parsed?.flag ?? nil, serverTitle: parsed?.title)
         }
     }
     var lastError: String?

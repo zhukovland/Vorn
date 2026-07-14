@@ -44,21 +44,28 @@ enum WidgetTunnelState {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    // MARK: - Флаг выбранного сервера
+    // MARK: - Выбранный сервер
 
-    /// Флаг-эмодзи выбранного сервера — единственное, что виджет знает о
-    /// сервере. Ни имени, ни адреса, ни ключей в общие UserDefaults не
-    /// попадает (они остаются в Keychain, куда виджету доступа нет).
+    /// Флаг-эмодзи и отображаемое имя выбранного сервера — всё, что виджет
+    /// знает о сервере. Ни адреса, ни ключей в общие UserDefaults не
+    /// попадает (они остаются в Keychain, куда виджету доступа нет); имя —
+    /// то же, что видно в списке серверов приложения, уже без флага.
     /// Пишет приложение при каждом изменении vault (см. VaultModel.state).
     nonisolated private static let flagKey = "widget.server.flag"
+    nonisolated private static let titleKey = "widget.server.title"
 
     nonisolated static var serverFlag: String? {
         defaults?.string(forKey: flagKey)
     }
 
-    nonisolated static func set(serverFlag: String?) {
-        guard serverFlag != self.serverFlag else { return }
+    nonisolated static var serverTitle: String? {
+        defaults?.string(forKey: titleKey)
+    }
+
+    nonisolated static func set(serverFlag: String?, serverTitle: String?) {
+        guard serverFlag != self.serverFlag || serverTitle != self.serverTitle else { return }
         defaults?.set(serverFlag, forKey: flagKey)
+        defaults?.set(serverTitle, forKey: titleKey)
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

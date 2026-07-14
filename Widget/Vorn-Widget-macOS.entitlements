@@ -9,5 +9,15 @@
 	<array>
 		<string>group.com.bigboys.Vorn</string>
 	</array>
+	<!-- Только на macOS: LiveActivityIntent там недоступен, интент кнопки
+	     выполняется в процессе виджета — ему нужны права на управление
+	     туннелем. Рабочесть подхода подтверждена: виджет Happ на macOS
+	     устроен ровно так же (NE-энтайтлмент + network.client у appex). -->
+	<key>com.apple.developer.networking.networkextension</key>
+	<array>
+		<string>packet-tunnel-provider</string>
+	</array>
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

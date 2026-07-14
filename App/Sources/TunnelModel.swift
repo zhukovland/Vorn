@@ -104,10 +104,22 @@ final class TunnelModel {
         defer { prepareTask = nil }
         do {
             let managers = try await NETunnelProviderManager.loadAllFromPreferences()
-            if let existing = managers.first {
-                manager = existing
-                status = existing.connection.status
+            if let live = managers.first(where: TunnelProfile.isCurrent) {
+                // Остальные — сироты прежних установок (см. TunnelProfile);
+                // подчищаем, чтобы виджету не из чего было выбрать мёртвый.
+                for orphan in managers where orphan !== live {
+                    try? await orphan.removeFromPreferences()
+                }
+                manager = live
+                status = live.connection.status
                 return
+            }
+
+            // Своего профиля нет. Всё найденное — сироты или профили старых
+            // сборок без метки: удаляем и создаём заново с меткой (цена —
+            // одноразовый повторный запрос разрешения на VPN).
+            for orphan in managers {
+                try? await orphan.removeFromPreferences()
             }
 
             let created = NETunnelProviderManager()
@@ -116,6 +128,7 @@ final class TunnelModel {
             // Отображается в системных настройках VPN; реальный адрес
             // сервера живёт в Keychain и сюда не попадает.
             proto.serverAddress = "Vorn"
+            TunnelProfile.stamp(proto, id: TunnelProfile.registerNewID())
             created.protocolConfiguration = proto
             created.localizedDescription = "Vorn"
             // Включаем сразу: иначе первый connect() платит ещё за одну

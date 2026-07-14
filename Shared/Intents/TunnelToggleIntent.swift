@@ -6,18 +6,16 @@ import VornStorage
 
 /// Тумблер туннеля для виджета: подключить/отключить выбранный сервер.
 ///
-/// LiveActivityIntent-конформанс заставляет систему выполнять `perform()`
-/// в процессе приложения (при необходимости подняв его в фоне), а не в
-/// процессе виджета. Это принципиально: NE-энтайтлмент есть только у
-/// app-таргета — виджет туннелем управлять не вправе (и не должен, см.
-/// правило изоляции ядра в CLAUDE.md).
+/// iOS: LiveActivityIntent-конформанс заставляет систему выполнять
+/// `perform()` в процессе приложения (при необходимости подняв его в фоне),
+/// а не в процессе виджета — NE-энтайтлмент на iOS есть только у app.
+///
+/// macOS: LiveActivityIntent недоступен, интент выполняется в процессе
+/// виджета, у которого есть собственный NE-энтайтлмент (см.
+/// Vorn-Widget-macOS.entitlements) — так же устроен виджет Happ.
 ///
 /// Конфиг сервера через NE не передаём: extension читает выбранный сервер
 /// из общего Keychain, как и при запуске из приложения.
-///
-/// LiveActivityIntent недоступен на macOS (там нет Live Activities), поэтому
-/// база подставляется платформенно. Спайк проверяем на iOS; macOS-путь пока
-/// только компилируется — форс app-процесса там решается отдельно.
 #if os(iOS)
 private typealias TunnelIntentBase = LiveActivityIntent
 #else
@@ -32,7 +30,19 @@ struct TunnelToggleIntent: TunnelIntentBase {
         let managers = try await NETunnelProviderManager.loadAllFromPreferences()
         // Профиля ещё нет — приложение не настраивали. Виджету тут делать
         // нечего: разрешение на VPN и выбор сервера возможны только в app.
-        guard let manager = managers.first else { return .result() }
+        // Среди найденных могут быть сироты прежних установок — действующий
+        // профиль опознаём по метке (см. TunnelProfile); запасной признак —
+        // активный статус: он бывает только у живого.
+        let live = managers.first(where: TunnelProfile.isCurrent)
+        let active = managers.first { candidate in
+            switch candidate.connection.status {
+            case .connected, .connecting, .reasserting, .disconnecting: true
+            default: false
+            }
+        }
+        guard let manager = live ?? active ?? managers.first else {
+            return .result()
+        }
 
         let connection = manager.connection
         switch connection.status {

@@ -20,22 +20,31 @@ private struct Entry: TimelineEntry {
     let date: Date
     let phase: WidgetTunnelState.Phase
     let flag: String?
+    let title: String?
+
+    static func current() -> Entry {
+        Entry(
+            date: Date(),
+            phase: WidgetTunnelState.phase,
+            flag: WidgetTunnelState.serverFlag,
+            title: WidgetTunnelState.serverTitle
+        )
+    }
 }
 
 private struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> Entry {
-        Entry(date: Date(), phase: .disconnected, flag: nil)
+        Entry(date: Date(), phase: .disconnected, flag: nil, title: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (Entry) -> Void) {
-        completion(Entry(date: Date(), phase: WidgetTunnelState.phase, flag: WidgetTunnelState.serverFlag))
+        completion(.current())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         // Перерисовку инициирует reloadAllTimelines() из интента, поэтому
         // сам таймлайн статичен — .never, без пустой траты бюджета обновлений.
-        let entry = Entry(date: Date(), phase: WidgetTunnelState.phase, flag: WidgetTunnelState.serverFlag)
-        completion(Timeline(entries: [entry], policy: .never))
+        completion(Timeline(entries: [.current()], policy: .never))
     }
 }
 
@@ -44,14 +53,7 @@ private struct VornWidgetView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Button(intent: TunnelToggleIntent()) {
-                Image(systemName: "power")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(entry.phase == .disconnected ? Color.secondary : .white)
-                    .frame(width: 64, height: 64)
-                    .background(fill, in: Circle())
-            }
-            .buttonStyle(.plain)
+            toggleControl
 
             Text(caption)
                 .font(.caption)
@@ -61,6 +63,13 @@ private struct VornWidgetView: View {
                 // эффекта системный и не настраивается, поэтому смягчаем
                 // иначе — метим только подпись, кнопку не трогаем.
                 .invalidatableContent()
+
+            if let title = entry.title {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .topTrailing) {
@@ -69,6 +78,19 @@ private struct VornWidgetView: View {
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
+    }
+
+    private var toggleControl: some View {
+        Button(intent: TunnelToggleIntent()) { powerIcon }
+            .buttonStyle(.plain)
+    }
+
+    private var powerIcon: some View {
+        Image(systemName: "power")
+            .font(.system(size: 30, weight: .semibold))
+            .foregroundStyle(entry.phase == .disconnected ? Color.secondary : .white)
+            .frame(width: 64, height: 64)
+            .background(fill, in: Circle())
     }
 
     private var fill: Color {
