@@ -4,9 +4,10 @@ import VornDesignSystem
 struct ContentView: View {
     @State private var vault = VaultModel()
     @State private var tunnel = TunnelModel()
+    @State private var ping = PingModel()
 
     var body: some View {
-        HomeView(vault: vault, tunnel: tunnel)
+        HomeView(vault: vault, tunnel: tunnel, ping: ping)
             // Тему потом вынесем в настройки (system/dark/light); пока по системе.
             .vornThemed(.system)
     }

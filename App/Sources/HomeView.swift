@@ -15,6 +15,7 @@ import AppKit
 struct HomeView: View {
     @Bindable var vault: VaultModel
     var tunnel: TunnelModel
+    var ping: PingModel
 
     @State private var refreshingID: String?
     @State private var importing = false
@@ -103,12 +104,29 @@ struct HomeView: View {
         .task {
             await tunnel.prepare()
             vault.reload()
+            measurePings()
         }
+    }
+
+    private var allServers: [VLESSServer] {
+        vault.state.subscriptions.flatMap(\.servers) + vault.state.manualServers
+    }
+
+    /// Авто-замер: только при отключённом туннеле, чтобы не затирать хорошие
+    /// значения мусорными. При поднятом VPN TCP-connect завершается локальным
+    /// proxy-стеком мгновенно (~3 мс) и ничего не значит. Ручной замер (меню,
+    /// долгое нажатие) работает всегда — это осознанное действие пользователя.
+    private func measurePings() {
+        guard !tunnel.isActive else { return }
+        ping.measure(allServers)
     }
 
     // MARK: - Герой
 
     private var hero: some View {
+        // Пинг на герое не показываем: при подключении честно померить его
+        // нельзя (замер идёт через туннель), а «до подключения» вводит в
+        // заблуждение. Качество сервера видно по полоскам в списке.
         ConnectHero(
             model: ConnectHeroModel(phase: tunnel.phase),
             busy: tunnel.status == .connecting || tunnel.status == .disconnecting,
@@ -136,6 +154,7 @@ struct HomeView: View {
                 meta: "\(subscription.servers.count) серв.",
                 refreshing: refreshingID == subscription.id,
                 onRefresh: { refresh(subscription) },
+                onPing: { ping.measure(subscription.servers) },
                 onDelete: { subscriptionToDelete = subscription }
             )
             grid(subscription.servers) { server in
@@ -160,10 +179,14 @@ struct HomeView: View {
         LazyVGrid(columns: columns, spacing: VornSpacing.m) {
             ForEach(servers) { server in
                 let sel = selection(server)
+                let ms = ping.pings[server.id]
                 ServerCard(
                     name: server.name,
+                    quality: SignalQuality(pingMs: ms),
+                    measuring: ping.measuring.contains(server.id),
                     transport: transportLabel(server),
                     state: cardState(sel),
+                    onPing: { ping.measure([server]) },
                     onTap: { selectServer(sel) }
                 )
             }
@@ -220,12 +243,14 @@ struct HomeView: View {
         if clip.lowercased().hasPrefix("vless://") {
             vault.addServer(link: clip)
             surfaceAddError()
+            measurePings()
         } else {
             importing = true
             Task {
                 await vault.importSubscription(urlString: clip)
                 importing = false
                 surfaceAddError()
+                measurePings()
             }
         }
     }
@@ -244,6 +269,7 @@ struct HomeView: View {
         Task {
             await vault.importSubscription(urlString: subscription.url.absoluteString)
             refreshingID = nil
+            measurePings()
         }
     }
 

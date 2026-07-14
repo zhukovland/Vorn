@@ -14,34 +14,41 @@ public enum ServerCardState: Sendable, Equatable {
 public struct ServerCard: View {
     private let name: String
     private let quality: SignalQuality
-    private let pingMs: Int?
+    private let measuring: Bool
     private let transport: String?
     private let state: ServerCardState
     private let onTap: () -> Void
-    
+    private let onPing: (() -> Void)?
+
     @Environment(\.vornTheme) private var theme
-    
+
     public init(
         name: String,
         quality: SignalQuality = .unknown,
-        pingMs: Int? = nil,
+        measuring: Bool = false,
         transport: String? = nil,
         state: ServerCardState = .normal,
+        onPing: (() -> Void)? = nil,
         onTap: @escaping () -> Void
     ) {
         self.name = name
         self.quality = quality
-        self.pingMs = pingMs
+        self.measuring = measuring
         self.transport = transport
         self.state = state
+        self.onPing = onPing
         self.onTap = onTap
     }
-    
+
     public var body: some View {
+        card.serverCardContextMenu(onPing: onPing)
+    }
+
+    private var card: some View {
         let parsed = ServerName.split(name)
-        Button(action: onTap) {
+        return Button(action: onTap) {
             VStack(alignment: .leading, spacing: VornSpacing.xs) {
-                HStack(spacing: VornSpacing.s) {
+                HStack(spacing: VornSpacing.xs) {
                     if let flag = parsed.flag {
                         FlagChip(flag: flag)
                     }
@@ -54,9 +61,11 @@ public struct ServerCard: View {
                             .background(theme.colors.sunken, in: Capsule())
                     }
                     Spacer()
-                    
-                    SignalBars(quality)
-
+                    if measuring {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        SignalBars(quality)
+                    }
                 }
                 Spacer(minLength: VornSpacing.xs)
                 Text(parsed.title)
@@ -142,12 +151,12 @@ private struct RunningBorder: View {
 #Preview("Карточки · состояния") {
     VornBackground {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: VornSpacing.m) {
-            ServerCard(name: "🇳🇱 Нидерланды NL-01", quality: .good, pingMs: 540, transport: "Vision", state: .connected, onTap: {})
-            ServerCard(name: "🇩🇪 Германия DE-02", quality: .fair, pingMs: 1120, transport: "XHTTP", state: .selected, onTap: {})
-            ServerCard(name: "🇸🇪 Швеция Стокгольм Премиум Максимальная Скорость", quality: .good, pingMs: 760, transport: "Vision", onTap: {})
-            ServerCard(name: "США US-03", quality: .poor, pingMs: 1840, transport: "XHTTP", onTap: {})
+            ServerCard(name: "🇳🇱 Нидерланды NL-01", quality: .good, transport: "Vision", state: .connected, onTap: {})
+            ServerCard(name: "🇩🇪 Германия DE-02", quality: .fair, transport: "XHTTP", state: .selected, onTap: {})
+            ServerCard(name: "🇸🇪 Швеция Стокгольм Премиум Максимальная Скорость", quality: .good, transport: "Vision", onTap: {})
+            ServerCard(name: "США US-03", quality: .poor, transport: "XHTTP", onTap: {})
             
-            ServerCard(name: "США US-03", quality: .unknown, pingMs: nil, transport: "XHTTP", onTap: {})
+            ServerCard(name: "США US-03", quality: .unknown, transport: "XHTTP", onTap: {})
         }
         .padding(VornSpacing.l)
     }

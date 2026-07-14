@@ -8,6 +8,7 @@ public struct SubscriptionSectionHeader: View {
     private let meta: String?
     private let refreshing: Bool
     private let onRefresh: (() -> Void)?
+    private let onPing: (() -> Void)?
     private let onDelete: (() -> Void)?
 
     @Environment(\.vornTheme) private var theme
@@ -17,12 +18,14 @@ public struct SubscriptionSectionHeader: View {
         meta: String? = nil,
         refreshing: Bool = false,
         onRefresh: (() -> Void)? = nil,
+        onPing: (() -> Void)? = nil,
         onDelete: (() -> Void)? = nil
     ) {
         self.title = title
         self.meta = meta
         self.refreshing = refreshing
         self.onRefresh = onRefresh
+        self.onPing = onPing
         self.onDelete = onDelete
     }
 
@@ -48,11 +51,16 @@ public struct SubscriptionSectionHeader: View {
     private var trailing: some View {
         if refreshing {
             ProgressView().controlSize(.small)
-        } else if onRefresh != nil || onDelete != nil {
+        } else if onRefresh != nil || onPing != nil || onDelete != nil {
             Menu {
                 if let onRefresh {
                     Button(action: onRefresh) {
                         Label("Обновить", systemImage: "arrow.clockwise")
+                    }
+                }
+                if let onPing {
+                    Button(action: onPing) {
+                        Label("Измерить пинг", systemImage: "gauge.medium")
                     }
                 }
                 if let onDelete {

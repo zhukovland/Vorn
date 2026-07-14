@@ -9,13 +9,14 @@ public enum SignalQuality: Sendable, Equatable {
     /// Пинг ещё не измерен или сервер не ответил.
     case unknown
 
-    /// Пороги под реальную сеть: даже лучшие серверы часто стартуют с ~500 мс
-    /// (расстояние + оверхед обфускации). Меняются здесь одной строкой.
+    /// Пороги под наш замер — время TCP-хендшейка до сервера (близость входа),
+    /// а не сквозная задержка. Близкий вход ≈ десятки мс; отсюда планка ниже,
+    /// чем у «real delay». Меняются здесь одной строкой.
     public init(pingMs: Int?) {
         switch pingMs {
         case .none: self = .unknown
-        case let ms? where ms <= 800: self = .good
-        case let ms? where ms <= 1500: self = .fair
+        case let ms? where ms <= 120: self = .good
+        case let ms? where ms <= 250: self = .fair
         default: self = .poor
         }
     }
