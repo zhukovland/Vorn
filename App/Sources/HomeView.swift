@@ -22,6 +22,14 @@ struct HomeView: View {
     @State private var subscriptionToDelete: Subscription?
     @State private var showNoServerAlert = false
     @State private var addError: String?
+    // Свёрнутые секции подписок; переживают перезапуск. Subscription.id —
+    // SHA-префикс без секретов, в обычных UserDefaults ему можно. AppStorage
+    // не умеет Set, поэтому храним id через запятую (в hex-id её не бывает).
+    @AppStorage("home.collapsedSubscriptions") private var collapsedSubscriptionsRaw = ""
+
+    private var collapsedSubscriptions: Set<String> {
+        Set(collapsedSubscriptionsRaw.split(separator: ",").map(String.init))
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: VornSpacing.m),
@@ -48,6 +56,10 @@ struct HomeView: View {
                         }
                     }
                     .padding(VornSpacing.l)
+                    // Анимация привязана к значению, а не к withAnimation:
+                    // запись @AppStorage приходит во вью вне транзакции,
+                    // и сворачивание секций иначе схлопывается без анимации.
+                    .animation(.snappy, value: collapsedSubscriptionsRaw)
                 }
             }
             .toolbar {
@@ -144,23 +156,36 @@ struct HomeView: View {
     // MARK: - Секции
 
     private func subscriptionSection(_ subscription: Subscription) -> some View {
-        VStack(alignment: .leading, spacing: VornSpacing.m) {
+        let collapsed = collapsedSubscriptions.contains(subscription.id)
+        return VStack(alignment: .leading, spacing: VornSpacing.m) {
             SubscriptionSectionHeader(
                 title: subscription.name,
                 meta: "\(subscription.servers.count) серв.",
                 refreshing: refreshingID == subscription.id,
+                collapsed: collapsed,
+                onToggleCollapse: { toggleCollapse(subscription.id) },
                 onRefresh: { refresh(subscription) },
                 onPing: { ping.measure(subscription.servers) },
                 onDelete: { subscriptionToDelete = subscription }
             )
-            if let announce = subscription.announce,
-               !announce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                AnnounceBanner(announce)
-            }
-            grid(subscription.servers) { server in
-                .subscription(subscriptionID: subscription.id, serverID: server.id)
+            if !collapsed {
+                if let announce = subscription.announce,
+                   !announce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    AnnounceBanner(announce)
+                }
+                grid(subscription.servers) { server in
+                    .subscription(subscriptionID: subscription.id, serverID: server.id)
+                }
             }
         }
+    }
+
+    private func toggleCollapse(_ subscriptionID: String) {
+        var collapsed = collapsedSubscriptions
+        if collapsed.remove(subscriptionID) == nil {
+            collapsed.insert(subscriptionID)
+        }
+        collapsedSubscriptionsRaw = collapsed.sorted().joined(separator: ",")
     }
 
     private var manualSection: some View {

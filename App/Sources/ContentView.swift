@@ -8,13 +8,38 @@ struct ContentView: View {
     @State private var ping = PingModel()
     // Подписка из диплинка, ждущая подтверждения пользователя.
     @State private var pendingSubscription: URL?
+    // Отключение по диплинку тоже требует подтверждения: молчаливое
+    // vorn://off с любого сайта — атака на деанонимизацию (страница гасит
+    // VPN и видит реальный адрес). Включение безопасно — выполняем молча.
+    @State private var confirmingDisconnect = false
 
     var body: some View {
         HomeView(vault: vault, tunnel: tunnel, ping: ping)
             // Тему потом вынесем в настройки (system/dark/light); пока по системе.
             .vornThemed(.system)
             .onOpenURL { url in
-                pendingSubscription = SubscriptionDeepLink.parse(url)
+                switch DeepLink.parse(url) {
+                case .addSubscription(let subscription):
+                    pendingSubscription = subscription
+                case .connect:
+                    connectFromDeepLink()
+                case .disconnect:
+                    if tunnel.isActive { confirmingDisconnect = true }
+                case .toggle:
+                    if tunnel.isActive {
+                        confirmingDisconnect = true
+                    } else {
+                        connectFromDeepLink()
+                    }
+                case nil:
+                    break
+                }
+            }
+            .alert("Отключить VPN?", isPresented: $confirmingDisconnect) {
+                Button("Отключить", role: .destructive) { tunnel.disconnect() }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Запрос на отключение пришёл по внешней ссылке.")
             }
             // Импорт только с подтверждением: диплинк может прислать любой
             // сайт, а молчаливая подмена серверов — перехват трафика.
@@ -33,6 +58,13 @@ struct ContentView: View {
             } message: { url in
                 Text("Источник: \(url.host() ?? url.absoluteString)")
             }
+    }
+
+    /// Ошибка «сервер не выбран» дойдёт из extension через lastError —
+    /// отдельного алерта здесь не нужно.
+    private func connectFromDeepLink() {
+        guard !tunnel.isActive else { return }
+        Task { await tunnel.connect() }
     }
 }
 
