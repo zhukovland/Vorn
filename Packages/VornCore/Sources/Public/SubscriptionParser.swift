@@ -11,13 +11,11 @@ public enum SubscriptionParser {
 
     /// Декодирует ответ сервера подписки в список серверов.
     ///
-    /// Канонический формат — base64 (включая base64url и вариант без паддинга)
-    /// от списка ссылок. Сначала пробуем его; если декодирование не удалось или
-    /// в декодированном нет ни одного сервера — разбираем payload как плейн-текст.
-    /// Это покрывает панели, отдающие уже декодированный список (в том числе с
-    /// заголовками-комментариями первой строкой), и плейн-текст, случайно
-    /// являющийся валидным base64. Невалидные строки и чужие протоколы молча
-    /// пропускаются; дубликаты (по id) схлопываются.
+    /// Поддерживаются три формата: список vless:// ссылок в base64 (канонический
+    /// Remnawave), тот же список плейн-текстом и XRAY_JSON (массив/объект полных
+    /// Xray-конфигов — панель отдаёт его некоторым клиентам). JSON пробуем и в
+    /// самом теле, и после base64-декодирования. Невалидные строки и чужие
+    /// протоколы молча пропускаются; дубликаты (по id) схлопываются.
     public static func parse(payload: String) throws -> [VLESSServer] {
         let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ParseError.invalidBase64 }
@@ -29,12 +27,25 @@ public enum SubscriptionParser {
         }
         candidates.append(trimmed)
 
+        // 1) XRAY_JSON: тело (или декодированное) — JSON-массив/объект конфигов.
+        var sawJSON = false
+        for text in candidates {
+            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard body.hasPrefix("[") || body.hasPrefix("{") else { continue }
+            sawJSON = true
+            if let servers = XrayJSONSubscriptionParser.parse(Data(body.utf8)), !servers.isEmpty {
+                return servers
+            }
+        }
+
+        // 2) Список vless:// ссылок (в base64 или плейн-тексте).
         for text in candidates {
             let found = servers(in: text)
             if !found.isEmpty { return found }
         }
 
-        if candidates.count == 1,
+        // JSON распознан, но серверов не извлекли — это noServers, не «не base64».
+        if !sawJSON, candidates.count == 1,
            trimmed.range(of: "vless://", options: .caseInsensitive) == nil {
             throw ParseError.invalidBase64
         }

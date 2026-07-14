@@ -22,12 +22,22 @@ public struct Subscription: Codable, Identifiable, Equatable, Sendable {
     public var servers: [VLESSServer]
     /// Момент последнего успешного обновления.
     public var updatedAt: Date
+    /// Сообщение панели (заголовок announce): акции, техработы и т.п.
+    /// Относится к этой подписке, не глобально.
+    public var announce: String?
 
-    public init(url: URL, name: String, servers: [VLESSServer], updatedAt: Date) {
+    public init(
+        url: URL,
+        name: String,
+        servers: [VLESSServer],
+        updatedAt: Date,
+        announce: String? = nil
+    ) {
         self.url = url
         self.name = name
         self.servers = servers
         self.updatedAt = updatedAt
+        self.announce = announce
     }
 }
 

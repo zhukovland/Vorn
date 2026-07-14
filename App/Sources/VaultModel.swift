@@ -26,8 +26,6 @@ struct ServerEntry: Identifiable {
 final class VaultModel {
     private(set) var state = VaultState()
     var lastError: String?
-    /// Сообщение панели из заголовка announce последней загрузки подписки.
-    var announce: String?
 
     @ObservationIgnored private let vault = ServerVault()
     @ObservationIgnored private let loader = SubscriptionLoader(userAgent: "Vorn/1.0")
@@ -79,7 +77,8 @@ final class VaultModel {
             let result = try await loader.load(from: url)
             let name = result.title ?? url.host ?? "Подписка"
             let subscription = Subscription(
-                url: url, name: name, servers: result.servers, updatedAt: Date()
+                url: url, name: name, servers: result.servers,
+                updatedAt: Date(), announce: result.announce
             )
             state = try vault.merge(subscription)
             // Если после обновления выбор опустел (выбранный сервер исчез из
@@ -88,7 +87,6 @@ final class VaultModel {
             if state.selectedServer == nil, let first = subscription.servers.first {
                 state = try vault.select(.subscription(subscriptionID: subscription.id, serverID: first.id))
             }
-            announce = result.announce
             lastError = result.servers.isEmpty ? "Подписка без серверов" : nil
         } catch {
             lastError = Self.describeFetch(error)

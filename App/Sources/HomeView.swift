@@ -34,10 +34,6 @@ struct HomeView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: VornSpacing.xxl) {
                         hero
-                        if let announce = vault.announce,
-                           !announce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            AnnounceBanner(announce)
-                        }
                         if let error = vault.lastError ?? tunnel.lastError {
                             errorText(error)
                         }
@@ -157,6 +153,10 @@ struct HomeView: View {
                 onPing: { ping.measure(subscription.servers) },
                 onDelete: { subscriptionToDelete = subscription }
             )
+            if let announce = subscription.announce,
+               !announce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                AnnounceBanner(announce)
+            }
             grid(subscription.servers) { server in
                 .subscription(subscriptionID: subscription.id, serverID: server.id)
             }
