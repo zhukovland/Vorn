@@ -40,6 +40,14 @@ let project = Project(
             deploymentTargets: deployment,
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": [:],
+                // vorn://add/<url> — импорт подписки по диплинку
+                // (см. SubscriptionDeepLink в VornCore).
+                "CFBundleURLTypes": [
+                    [
+                        "CFBundleURLName": "com.bigboys.Vorn",
+                        "CFBundleURLSchemes": ["vorn"],
+                    ],
+                ],
                 "UISupportedInterfaceOrientations~ipad": [
                     "UIInterfaceOrientationPortrait",
                     "UIInterfaceOrientationPortraitUpsideDown",
