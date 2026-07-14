@@ -28,6 +28,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             }
             server = selected
         } catch {
+            // Провал старта не ведёт к вызову stopTunnel — фазу для виджета
+            // сбрасываем сами, иначе он застрянет на «Подключение…».
+            WidgetTunnelState.set(.disconnected)
             throw Self.describe(error)
         }
 
@@ -35,6 +38,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             try await setTunnelNetworkSettings(Self.networkSettings(remoteAddress: server.address))
             try startXray(for: server)
         } catch {
+            WidgetTunnelState.set(.disconnected)
             throw Self.describe(error)
         }
     }
@@ -43,6 +47,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         // Синхронный хелпер: замок не пересекает await (NSLock это запрещает).
         takeBridgeAndMarkStopped()?.stop()
         try? FileManager.default.removeItem(at: Self.finalConfigURL)
+        WidgetTunnelState.set(.disconnected)
     }
 
     private func startXray(for server: VLESSServer) throws {
@@ -72,7 +77,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
         // Стоп мог прийти, пока поднимался мост: тогда его уже никто не
         // заберёт — гасим ядро здесь, иначе оно осталось бы работать.
-        if !installBridge(newBridge) { newBridge.stop() }
+        if installBridge(newBridge) {
+            // Extension — единственный процесс, живущий ровно столько,
+            // сколько поднят туннель: его запись достоверна даже когда
+            // приложение закрыто и наблюдателя NEVPNStatusDidChange нет.
+            WidgetTunnelState.set(.connected)
+        } else {
+            newBridge.stop()
+        }
     }
 
     // MARK: - Синхронный доступ к bridge/stopped под замком

@@ -48,6 +48,9 @@ final class TunnelModel {
 
     private func handle(_ connection: NEVPNConnection) {
         status = connection.status
+        // Держим общую фазу для виджета в актуальном состоянии — иначе
+        // кнопка на виджете «залипнет» в старом виде.
+        WidgetTunnelState.set(Self.widgetPhase(for: status))
         guard status == .disconnected else { return }
 
         // Дождались отключения ради смены сервера — поднимаем новый.
@@ -148,6 +151,15 @@ final class TunnelModel {
 
     var isActive: Bool {
         status == .connected || status == .connecting || status == .reasserting
+    }
+
+    private static func widgetPhase(for status: NEVPNStatus) -> WidgetTunnelState.Phase {
+        switch status {
+        case .connected: .connected
+        case .connecting, .reasserting: .connecting
+        case .disconnecting: .disconnecting
+        default: .disconnected
+        }
     }
 
     /// Статус NE в терминах дизайн-системы для героя.

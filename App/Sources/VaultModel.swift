@@ -1,5 +1,6 @@
 import Foundation
 import VornCore
+import VornDesignSystem
 import VornStorage
 import VornSubscription
 
@@ -24,7 +25,16 @@ struct ServerEntry: Identifiable {
 @Observable
 @MainActor
 final class VaultModel {
-    private(set) var state = VaultState()
+    // didSet — единая точка синхронизации флага с виджетом: сюда стекаются
+    // все изменения vault (выбор, импорт, удаление), отдельные вызовы по
+    // месту не нужны.
+    private(set) var state = VaultState() {
+        didSet {
+            WidgetTunnelState.set(
+                serverFlag: state.selectedServer.flatMap { ServerName.split($0.name).flag }
+            )
+        }
+    }
     var lastError: String?
 
     @ObservationIgnored private let vault = ServerVault()

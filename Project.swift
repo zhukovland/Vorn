@@ -47,7 +47,12 @@ let project = Project(
                     "UIInterfaceOrientationLandscapeRight",
                 ],
             ]),
-            sources: ["App/Sources/**"],
+            // Shared/Intents компилируется и в app, и в виджет: одинаковый
+            // тип интента в обоих таргетах — условие того, чтобы система
+            // выполняла его в процессе приложения (см. TunnelToggleIntent).
+            // Shared/WidgetState — во всех трёх таргетах: флаг статуса пишут
+            // app, интент и tunnel-extension, читает виджет.
+            sources: ["App/Sources/**", "Shared/Intents/**", "Shared/WidgetState/**"],
             resources: ["App/Resources/**"],
             dependencies: [
                 .package(product: "VornCore"),
@@ -56,6 +61,7 @@ let project = Project(
                 .package(product: "VornDesignSystem"),
                 .package(product: "VornPing"),
                 .target(name: "PacketTunnel"),
+                .target(name: "VornWidget"),
             ],
             settings: .settings(base: [
                 "CODE_SIGN_ENTITLEMENTS": "App/Vorn-iOS.entitlements",
@@ -74,7 +80,7 @@ let project = Project(
                     "NSExtensionPrincipalClass": "$(PRODUCT_MODULE_NAME).PacketTunnelProvider",
                 ],
             ]),
-            sources: ["PacketTunnel/Sources/**"],
+            sources: ["PacketTunnel/Sources/**", "Shared/WidgetState/**"],
             dependencies: [
                 .package(product: "VornCore"),
                 .package(product: "VornStorage"),
@@ -85,6 +91,27 @@ let project = Project(
                 "SWIFT_DEFAULT_ACTOR_ISOLATION": "nonisolated",
                 "CODE_SIGN_ENTITLEMENTS": "PacketTunnel/PacketTunnel-iOS.entitlements",
                 "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": "PacketTunnel/PacketTunnel-macOS.entitlements",
+            ])
+        ),
+        .target(
+            name: "VornWidget",
+            destinations: [.iPhone, .iPad, .mac],
+            product: .appExtension,
+            bundleId: "com.bigboys.Vorn.Widget",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "NSExtension": [
+                    "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
+                ],
+            ]),
+            // Shared/Intents — тот же интент, что и в app-таргете (см. выше).
+            sources: ["Widget/Sources/**", "Shared/Intents/**", "Shared/WidgetState/**"],
+            dependencies: [
+                .package(product: "VornStorage"),
+            ],
+            settings: .settings(base: [
+                "CODE_SIGN_ENTITLEMENTS": "Widget/Vorn-Widget.entitlements",
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": "Widget/Vorn-Widget-macOS.entitlements",
             ])
         ),
     ]
